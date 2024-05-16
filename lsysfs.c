@@ -19,6 +19,11 @@
 #include <stdlib.h>
 #include <errno.h>
 
+
+
+// 加入aes演算法
+#include "aes/aes.h"
+
 // ... //
 
 char dir_list[ 256 ][ 256 ];
@@ -84,7 +89,8 @@ void write_to_file( const char *path, const char *new_content )
 	
 	if ( file_idx == -1 ) // No such file
 		return;
-		
+	// todo : 這裡要放入加密程式碼，考慮要不要用id去對應key
+	new_content = encrypt(new_content);
 	strcpy( files_content[ file_idx ], new_content ); 
 }
 
@@ -141,7 +147,9 @@ static int do_read( const char *path, char *buffer, size_t size, off_t offset, s
 		return -1;
 	
 	char *content = files_content[ file_idx ];
-	
+	// todo : 這裡要放入解密程式碼，考慮要不要用id去對應key
+	// unsigned char * decrypted_data = decrypt(content);
+
 	memcpy( buffer, content + offset, size );
 		
 	return strlen( content ) - offset;
@@ -165,6 +173,7 @@ static int do_mknod( const char *path, mode_t mode, dev_t rdev )
 
 static int do_write( const char *path, const char *buffer, size_t size, off_t offset, struct fuse_file_info *info )
 {
+	printf("do write!!\n");
 	write_to_file( path, buffer );
 	
 	return size;
