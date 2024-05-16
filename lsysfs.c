@@ -89,9 +89,10 @@ void write_to_file( const char *path, const char *new_content )
 	
 	if ( file_idx == -1 ) // No such file
 		return;
-	// todo : 這裡要放入加密程式碼，考慮要不要用id去對應key
-	new_content = encrypt(new_content);
-	strcpy( files_content[ file_idx ], new_content ); 
+	// todo : 這裡要放入加密程式碼
+
+	unsigned char* encrypted_data = encrypt(new_content, file_idx);
+	strcpy( files_content[ file_idx ], encrypted_data ); 
 }
 
 // ... //
@@ -148,10 +149,10 @@ static int do_read( const char *path, char *buffer, size_t size, off_t offset, s
 	
 	char *content = files_content[ file_idx ];
 	// todo : 這裡要放入解密程式碼，考慮要不要用id去對應key
-	// unsigned char * decrypted_data = decrypt(content);
 
-	memcpy( buffer, content + offset, size );
-		
+	char * decrypted_data = decrypt(content, file_idx);
+	memcpy( buffer, decrypted_data + offset, size );
+	
 	return strlen( content ) - offset;
 }
 
@@ -177,6 +178,10 @@ static int do_write( const char *path, const char *buffer, size_t size, off_t of
 	write_to_file( path, buffer );
 	
 	return size;
+}
+
+static int do_rmdir(const char * ){
+	
 }
 
 static struct fuse_operations operations = {

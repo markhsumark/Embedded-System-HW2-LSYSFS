@@ -1,10 +1,35 @@
 #include "aes.h"
 
 // 16 bytes密鑰
-const unsigned char aes_key[] = "0123456789abcdef0123456789abcdef";
-const unsigned char aes_iv[] = "0123456789abcdef0123456789abcdef";
+// const unsigned char aes_key[] = "0123456789abcdef0123456789abcdef";
+// const unsigned char aes_iv[] = "0123456789abcdef0123456789abcdef";
 
-unsigned char * encrypt(unsigned char* plaintext){
+unsigned char map_key[256][32];
+unsigned char map_iv[256][32];
+
+void genKey(unsigned char** key){
+    // 使用 OpenSSL 生成隨機數填充 aes_key
+    if (RAND_bytes(*key, AES_KEY_SIZE) != 1) {
+        fprintf(stderr, "Error generating random key\n");
+        return;
+    }
+
+    // 打印生成的 AES 密鑰
+    printf("Generated AES key: ");
+    for (int i = 0; i < AES_KEY_SIZE; i++) {
+        printf("%02x ", (*key)[i]);
+    }
+    printf("\n");
+}
+
+unsigned char * encrypt(unsigned char* plaintext, int file_idx){
+
+    unsigned char* aes_key = malloc(sizeof(unsigned char)*AES_KEY_SIZE);
+	unsigned char* aes_iv = malloc(sizeof(unsigned char)*AES_KEY_SIZE);
+	genKey(&aes_key);
+	genKey(&aes_iv);
+	memcpy(map_key[file_idx], aes_key, AES_KEY_SIZE);
+	memcpy(map_iv[file_idx], aes_iv, AES_KEY_SIZE);
     if(strlen(plaintext) == 0)
         return plaintext;
     int plaintext_len = strlen(plaintext);
@@ -52,10 +77,14 @@ unsigned char * encrypt(unsigned char* plaintext){
     }
     printf("\n");
     encrypted_data[encrypted_len] = '\0';
+    free(aes_key);
+	free(aes_iv);
     return encrypted_data;
 }
-unsigned char * decrypt(unsigned char* encrypted_data){    
-     if(strlen(encrypted_data) == 0)
+char * decrypt(unsigned char* encrypted_data,int file_idx){    
+    unsigned char* aes_key = map_key[file_idx];
+	unsigned char* aes_iv = map_iv[file_idx];
+    if(strlen(encrypted_data) == 0)
         return encrypted_data;
      // 創建 EVP 加密上下文
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
@@ -70,7 +99,7 @@ unsigned char * decrypt(unsigned char* encrypted_data){
     int decrypted_len = encrypted_len + EVP_CIPHER_CTX_block_size(ctx);
     
     // 解密資料
-    unsigned char *decrypted_data = malloc(decrypted_len);
+    char *decrypted_data = malloc(decrypted_len);
     if (decrypted_data == NULL) {
         fprintf(stderr, "Memory allocation failed\n");
         EVP_CIPHER_CTX_free(ctx);
