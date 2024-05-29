@@ -35,15 +35,143 @@ int curr_file_idx = -1;
 char files_content[ 256 ][ 256 ];
 int curr_file_content_idx = -1;
 
+// TODO: 模擬inode的結構
+struct file{
+	char files_content[ 256 ];// 檔案內容
+};
+struct inode{
+	int file_count;
+	int dir_count;
+	char dir_name_list[ 256 ][ 256 ];
+	char file_name_list[ 256 ][ 256 ];
+	struct file* files_list[ 256 ]; // file index to file
+	struct inode* dir_list[ 256 ];
+};
+
+// TODO: 初始化根目錄
+struct inode temp_node= {.file_count = -1, .dir_count = -1};
+struct inode * root_inode = &temp_node;
+
+/*TODO: 分析path
+將一個char* 的path字串根據"/"拆成
+ex: "dir1/dir2" => ["dir1", "dir2"]
+*/ 
+#define MAX_DIRS 100
+char** split_path(const char *path, char delimiter, int *count) {
+    char *temp_path;
+    char delim[2] = {delimiter, '\0'};
+    char *token;
+    char **output;
+    int dir_count = 0;
+
+    // 拷貝原始字符串
+    temp_path = strdup(path);
+    if (temp_path == NULL) {
+        perror("strdup failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // 分配指針數組的內存
+    output = (char **)malloc(MAX_DIRS * sizeof(char *));
+    if (output == NULL) {
+        perror("malloc failed");
+        free(temp_path);
+        exit(EXIT_FAILURE);
+    }
+
+    // 使用strtok拆分字符串
+    token = strtok(temp_path, delim);
+    while (token != NULL && dir_count < MAX_DIRS) {
+        output[dir_count] = strdup(token);
+        if (output[dir_count] == NULL) {
+            perror("strdup failed");
+            // 釋放已分配的內存
+            for (int i = 0; i < dir_count; i++) {
+                free(output[i]);
+            }
+            free(output);
+            free(temp_path);
+            exit(EXIT_FAILURE);
+        }
+        dir_count++;
+        token = strtok(NULL, delim);
+    }
+
+    free(temp_path); // 釋放臨時字符串的內存
+    *count = dir_count;
+    return output;
+}
+
+// TODO
+// 初始化函數
+struct inode* create_inode() {
+    struct inode* new_inode = (struct inode*)malloc(sizeof(struct inode));
+    if (new_inode == NULL) {
+        perror("Failed to allocate memory");
+        exit(EXIT_FAILURE);
+    }
+    new_inode->file_count = -1;
+    new_inode->dir_count = -1;
+    // 清空其他成員（初始化為零）
+    memset(new_inode->dir_name_list, 0, sizeof(sizeof(char*)*256*256));
+    memset(new_inode->file_name_list, 0, sizeof(sizeof(char*)*256*256));
+    memset(new_inode->files_list, 0, sizeof(new_inode->files_list));
+    memset(new_inode->dir_list, 0, sizeof(new_inode->dir_list));
+    return new_inode;
+}
+
 void add_dir( const char *dir_name )
 {
 	curr_dir_idx++;
+	// TODO: 實體劃一個inode structure(必須分配記憶體空間)，要連在正確的inode下
+	int count;
+	char** path_list = split_path(dir_name, '/', &count);
+	struct inode * current_inode = root_inode;
+	for(int i=0; i<count-1; i++){
+		// 從當層的inode找dir
+		for(int d=0; d<=current_inode->dir_count; d++){
+			printf("find %s\n", path_list[i]);
+			if( strcmp( path_list[i], current_inode->dir_name_list[d] ) == 0 ){
+				current_inode = current_inode->dir_list[d];
+				printf("goto %s's inode\n", current_inode->dir_name_list[d]);
+				break;
+			}	
+		}
+		printf("this is not dir!!\n");
+	}
+	int n = ++(current_inode->dir_count);	
+	strcpy(current_inode->dir_name_list[n], path_list[count-1]);
+	printf("! ");	
+	struct inode * new_inode = create_inode();
+	printf("create a inode %s\n", path_list[count-1]);
+	current_inode->dir_list[n] = new_inode;
+
 	strcpy( dir_list[ curr_dir_idx ], dir_name );
 }
 
 int is_dir( const char *path )
 {
 	path++; // Eliminating "/" in the path
+
+    // TODO: 這邊要分析path，追著inode去判斷最後是不是對應到dir
+	int count;
+	char** path_list = split_path(path, '/', &count);
+	struct inode * current_inode = root_inode;
+	for(int i=0; i<count; i++){
+		// 從當層的inode找dir
+		for(int d=0; d<=current_inode->dir_count; d++){
+			printf("find %s\n", path_list[i]);
+			if( strcmp( path_list[i], current_inode->dir_name_list[d] ) == 0 ){
+				printf("goto %s's inode\n", current_inode->dir_name_list[d]);
+				current_inode = current_inode->dir_list[d];
+				break;
+			}
+		}
+		printf("this is not dir!!\n");
+		return 0;
+	}
+	printf("done is_dir\n");
+
 	
 	for ( int curr_idx = 0; curr_idx <= curr_dir_idx; curr_idx++ )
 		if ( strcmp( path, dir_list[ curr_idx ] ) == 0 )
@@ -64,7 +192,6 @@ void add_file( const char *filename )
 int is_file( const char *path )
 {
 	path++; // Eliminating "/" in the path
-	
 	for ( int curr_idx = 0; curr_idx <= curr_file_idx; curr_idx++ )
 		if ( strcmp( path, files_list[ curr_idx ] ) == 0 )
 			return 1;
@@ -125,6 +252,13 @@ static int do_getattr( const char *path, struct stat *st )
 
 static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi )
 {
+	printf("do_readdir)\n");
+	// TODO: 用inode tree找到當下路徑的inode並用該inode列出所有file和dir
+	
+
+
+
+	// --------------------------
 	filler( buffer, ".", NULL, 0 ); // Current Directory
 	filler( buffer, "..", NULL, 0 ); // Parent Directory
 	
