@@ -122,6 +122,7 @@ struct inode* create_inode() {
 
 void add_dir( const char *dir_name )
 {
+	printf("\nin add_dir)\n");
 	curr_dir_idx++;
 	// TODO: 實體劃一個inode structure(必須分配記憶體空間)，要連在正確的inode下
 	int count;
@@ -137,11 +138,9 @@ void add_dir( const char *dir_name )
 				break;
 			}	
 		}
-		printf("this is not dir!!\n");
 	}
 	int n = ++(current_inode->dir_count);	
 	strcpy(current_inode->dir_name_list[n], path_list[count-1]);
-	printf("! ");	
 	struct inode * new_inode = create_inode();
 	printf("create a inode %s\n", path_list[count-1]);
 	current_inode->dir_list[n] = new_inode;
@@ -154,21 +153,25 @@ int is_dir( const char *path )
 	path++; // Eliminating "/" in the path
 
     // TODO: 這邊要分析path，追著inode去判斷最後是不是對應到dir
+	printf("\nin is_dir)\n");
 	int count;
 	char** path_list = split_path(path, '/', &count);
 	struct inode * current_inode = root_inode;
+	int check = 0;
 	for(int i=0; i<count; i++){
 		// 從當層的inode找dir
 		for(int d=0; d<=current_inode->dir_count; d++){
 			printf("find %s\n", path_list[i]);
 			if( strcmp( path_list[i], current_inode->dir_name_list[d] ) == 0 ){
-				printf("goto %s's inode\n", current_inode->dir_name_list[d]);
+				printf("goto %s's inode\n", path_list[i]);
 				current_inode = current_inode->dir_list[d];
-				break;
+				check = 1;
 			}
 		}
-		printf("this is not dir!!\n");
-		return 0;
+		if(!check){
+			printf("this is not dir!!\n");
+			return 0;
+		}
 	}
 	printf("done is_dir\n");
 
@@ -255,10 +258,6 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 	printf("do_readdir)\n");
 	// TODO: 用inode tree找到當下路徑的inode並用該inode列出所有file和dir
 	
-
-
-
-	// --------------------------
 	filler( buffer, ".", NULL, 0 ); // Current Directory
 	filler( buffer, "..", NULL, 0 ); // Parent Directory
 	
