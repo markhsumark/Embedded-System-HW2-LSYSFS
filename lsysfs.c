@@ -151,7 +151,7 @@ void add_dir( const char *dir_name )
 	printf("create a inode %s\n", path_list[count-1]);
 	current_inode->dir_list[n] = new_inode;
 
-	strcpy( dir_list[ curr_dir_idx ], dir_name );
+	// strcpy( dir_list[ curr_dir_idx ], dir_name );
 }
 
 int is_dir( const char *path )
@@ -180,13 +180,14 @@ int is_dir( const char *path )
 		}
 	}
 	printf("done is_dir\n");
+	return 1;
 
 	
-	for ( int curr_idx = 0; curr_idx <= curr_dir_idx; curr_idx++ )
-		if ( strcmp( path, dir_list[ curr_idx ] ) == 0 )
-			return 1;
+	// for ( int curr_idx = 0; curr_idx <= curr_dir_idx; curr_idx++ )
+	// 	if ( strcmp( path, dir_list[ curr_idx ] ) == 0 )
+	// 		return 1;
 	
-	return 0;
+	// return 0;
 }
 
 void add_file( const char *path )
@@ -215,25 +216,59 @@ void add_file( const char *path )
 
 
 
-	curr_file_idx++;
-	strcpy( files_list[ curr_file_idx ], path );
+	// curr_file_idx++;
+	// strcpy( files_list[ curr_file_idx ], path );
 	
-	curr_file_content_idx++;
-	strcpy( files_content[ curr_file_content_idx ], "" );
+	// curr_file_content_idx++;
+	// strcpy( files_content[ curr_file_content_idx ], "" );
 }
 
 int is_file( const char *path )
 {
-	path++; // Eliminating "/" in the path
-	for ( int curr_idx = 0; curr_idx <= curr_file_idx; curr_idx++ )
-		if ( strcmp( path, files_list[ curr_idx ] ) == 0 )
-			return 1;
-	
+	//先找出inode
+	int count;
+	char** path_list = split_path(path, '/', &count);
+	struct inode * current_inode = root_inode;
+	for(int i=0; i<count-1; i++){ // 留下path中的最後一組(因為是filename)
+		// 從當層的inode找dir
+		for(int d=0; d<=current_inode->dir_count; d++){
+			printf("find %s\n", path_list[i]);
+			if( strcmp( path_list[i], current_inode->dir_name_list[d] ) == 0 ){
+				current_inode = current_inode->dir_list[d];
+				printf("goto %s's inode\n", current_inode->dir_name_list[d]);
+				break;
+			}	
+		}
+	}
+	// 找到file
+	int id = -1;
+	int check = 0;
+	for(int i = 0; i<= current_inode->file_count; i++){
+		if( strcmp(current_inode->file_name_list[i], path_list[count-1] ) == 0 ){
+			id = i;
+			check = 1;
+			break;
+		}
+	}
+	if(check)
+		return 1;
+
 	return 0;
+
+
+	// -----------------------
+	// ---------------------
+	// path++; // Eliminating "/" in the path
+	// for ( int curr_idx = 0; curr_idx <= curr_file_idx; curr_idx++ )
+	// 	if ( strcmp( path, files_list[ curr_idx ] ) == 0 )
+	// 		return 1;
+	
+	// return 0;
 }
 
 int get_file_index( const char *path )
 {
+
 	path++; // Eliminating "/" in the path
 	
 	for ( int curr_idx = 0; curr_idx <= curr_file_idx; curr_idx++ )
@@ -276,14 +311,14 @@ void write_to_file( const char *path, const char *new_content )
 	strcpy( target_file->content, new_content ); 
 
 	// -----------------
-	int file_idx = get_file_index( path );
+	// int file_idx = get_file_index( path );
 	
-	if ( file_idx == -1 ) // No such file
-		return;
-	// todo : 這裡要放入加密程式碼
+	// if ( file_idx == -1 ) // No such file
+	// 	return;
+	// // todo : 這裡要放入加密程式碼
 
-	unsigned char* encrypted_data = encrypt(new_content, file_idx);
-	strcpy( files_content[ file_idx ], encrypted_data ); 
+	// unsigned char* encrypted_data = encrypt(new_content, file_idx);
+	// strcpy( files_content[ file_idx ], encrypted_data ); 
 }
 
 // ... //
