@@ -255,20 +255,33 @@ static int do_getattr( const char *path, struct stat *st )
 
 static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi )
 {
-	printf("do_readdir)\n");
+	printf("\ndo_readdir)%s\n", path);
 	// TODO: 用inode tree找到當下路徑的inode並用該inode列出所有file和dir
 	
+	//這兩行不知道是什麼
 	filler( buffer, ".", NULL, 0 ); // Current Directory
 	filler( buffer, "..", NULL, 0 ); // Parent Directory
 	
-	if ( strcmp( path, "/" ) == 0 ) // If the user is trying to show the files/directories of the root directory show the following
-	{
-		for ( int curr_idx = 0; curr_idx <= curr_dir_idx; curr_idx++ )
-			filler( buffer, dir_list[ curr_idx ], NULL, 0 );
-	
-		for ( int curr_idx = 0; curr_idx <= curr_file_idx; curr_idx++ )
-			filler( buffer, files_list[ curr_idx ], NULL, 0 );
+	// 跳到指定的路徑
+	int count;
+	char** path_list = split_path(path, '/', &count);
+	struct inode * current_inode = root_inode;
+	for(int i=0; i<count; i++){
+		// 從當層的inode找dir
+		for(int d=0; d<=current_inode->dir_count; d++){
+			printf("find %s\n", path_list[i]);
+			if( strcmp( path_list[i], current_inode->dir_name_list[d] ) == 0 ){
+				current_inode = current_inode->dir_list[d];
+				printf("goto %s's inode\n", current_inode->dir_name_list[d]);
+				break;
+			}	
+		}
 	}
+	for ( int curr_idx = 0; curr_idx <= current_inode->dir_count; curr_idx++ )
+		filler( buffer, current_inode->dir_name_list[ curr_idx ], NULL, 0 );
+
+	for ( int curr_idx = 0; curr_idx <= current_inode->file_count; curr_idx++ )
+		filler( buffer, current_inode->file_name_list[ curr_idx ], NULL, 0 );
 	
 	return 0;
 }
