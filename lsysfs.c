@@ -37,7 +37,7 @@ int curr_file_content_idx = -1;
 
 // TODO: 模擬inode的結構
 struct file{
-	char files_content[ 256 ];// 檔案內容
+	char content[ 256 ];// 檔案內容
 };
 struct inode{
 	int file_count;
@@ -119,6 +119,12 @@ struct inode* create_inode() {
     memset(new_inode->dir_list, 0, sizeof(new_inode->dir_list));
     return new_inode;
 }
+// TODO: create_file funciton
+struct file* create_file(){
+	struct file* new_file = (struct inode*)malloc(sizeof(struct file));
+	memset(new_file->content, 0, sizeof(sizeof(char*)*256));
+	return new_file;
+}
 
 void add_dir( const char *dir_name )
 {
@@ -183,10 +189,34 @@ int is_dir( const char *path )
 	return 0;
 }
 
-void add_file( const char *filename )
+void add_file( const char *path )
 {
+	// TODO: 新增file
+	int count;
+	char** path_list = split_path(path, '/', &count);
+	struct inode * current_inode = root_inode;
+	for(int i=0; i<count-1; i++){ // 留下path中的最後一組(因為是filename)
+		// 從當層的inode找dir
+		for(int d=0; d<=current_inode->dir_count; d++){
+			printf("find %s\n", path_list[i]);
+			if( strcmp( path_list[i], current_inode->dir_name_list[d] ) == 0 ){
+				current_inode = current_inode->dir_list[d];
+				printf("goto %s's inode\n", current_inode->dir_name_list[d]);
+				break;
+			}	
+		}
+	}
+
+	struct file* new_file = create_file();
+	int n = ++current_inode->file_count;
+	strcpy( current_inode->file_name_list[ n ], path_list[count-1] );
+	strcpy(new_file->content, "");
+	current_inode->files_list[ n ] = new_file;
+
+
+
 	curr_file_idx++;
-	strcpy( files_list[ curr_file_idx ], filename );
+	strcpy( files_list[ curr_file_idx ], path );
 	
 	curr_file_content_idx++;
 	strcpy( files_content[ curr_file_content_idx ], "" );
@@ -215,6 +245,37 @@ int get_file_index( const char *path )
 
 void write_to_file( const char *path, const char *new_content )
 {
+
+	// TODO: write file
+	//先找出inode
+	int count;
+	char** path_list = split_path(path, '/', &count);
+	struct inode * current_inode = root_inode;
+	for(int i=0; i<count-1; i++){ // 留下path中的最後一組(因為是filename)
+		// 從當層的inode找dir
+		for(int d=0; d<=current_inode->dir_count; d++){
+			printf("find %s\n", path_list[i]);
+			if( strcmp( path_list[i], current_inode->dir_name_list[d] ) == 0 ){
+				current_inode = current_inode->dir_list[d];
+				printf("goto %s's inode\n", current_inode->dir_name_list[d]);
+				break;
+			}	
+		}
+	}
+	// 找到file
+	int id = -1;
+	for(int i = 0; i<= current_inode->file_count; i++){
+		if( strcmp(current_inode->file_name_list[i], path_list[count-1] ) == 0 ){
+			id = i;
+			break;
+		}
+	}
+	struct file* target_file = current_inode->files_list[id];
+
+	//strcpy 內容
+	strcpy( target_file->content, new_content ); 
+
+	// -----------------
 	int file_idx = get_file_index( path );
 	
 	if ( file_idx == -1 ) // No such file
