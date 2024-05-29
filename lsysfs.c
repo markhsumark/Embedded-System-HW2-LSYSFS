@@ -159,30 +159,32 @@ int is_dir( const char *path )
 	path++; // Eliminating "/" in the path
 
     // TODO: 這邊要分析path，追著inode去判斷最後是不是對應到dir
-	printf("\nin is_dir)\n");
+	printf("\nin is_dir): %s\n", path);
 	int count;
 	char** path_list = split_path(path, '/', &count);
 	struct inode * current_inode = root_inode;
 	int check = 0;
 	for(int i=0; i<count; i++){
+		check = 0;
+		printf("find %s\n", path_list[i]);
 		// 從當層的inode找dir
 		for(int d=0; d<=current_inode->dir_count; d++){
-			printf("find %s\n", path_list[i]);
 			if( strcmp( path_list[i], current_inode->dir_name_list[d] ) == 0 ){
 				printf("goto %s's inode\n", path_list[i]);
 				current_inode = current_inode->dir_list[d];
 				check = 1;
+				break;
 			}
 		}
-		if(!check){
-			printf("this is not dir!!\n");
-			return 0;
-		}
 	}
-	printf("done is_dir\n");
+	if(!check){
+		printf("dir not found!!\n");
+		return 0;
+	}
+	printf("!\n");
 	return 1;
 
-	
+	// --------------------	
 	// for ( int curr_idx = 0; curr_idx <= curr_dir_idx; curr_idx++ )
 	// 	if ( strcmp( path, dir_list[ curr_idx ] ) == 0 )
 	// 		return 1;
@@ -384,6 +386,7 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 
 static int do_read( const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi )
 {
+	// TODO: do read file
 	int file_idx = get_file_index( path );
 	
 	if ( file_idx == -1 )
