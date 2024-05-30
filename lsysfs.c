@@ -425,8 +425,30 @@ static int do_rmdir(const char * path){
 	}
 		
 }
-static int do_remove(const char * ){
+static int do_rm(const char * path){
 	// TODO: rm file
+	printf("in do_rm)\n");
+	int path_len;
+	char** path_list = split_path(path, '/', &path_len);
+	struct inode* current_inode = trace_inode(path_list, path_len);
+	struct file* prev_file = current_inode->files_list;
+	struct file* file_ptr = current_inode->files_list;
+	while(file_ptr && path_len){
+		if( strcmp( path_list[path_len-1], file_ptr->name ) == 0 ){
+			break;
+		}	
+		prev_file = file_ptr;
+		file_ptr = file_ptr->next_file;
+	}
+	printf("remove %s\n", file_ptr->name );
+	if(file_ptr == current_inode->files_list){
+		current_inode->files_list = file_ptr->next_file;
+		free(file_ptr);
+	}
+	else{
+		prev_file->next_file = file_ptr->next_file;
+		free(file_ptr);
+	}
 }
 
 static struct fuse_operations operations = {
@@ -437,6 +459,7 @@ static struct fuse_operations operations = {
     .mknod		= do_mknod,
     .write		= do_write,
 	.rmdir		= do_rmdir,
+	.unlink		= do_rm,
 };
 
 int main( int argc, char *argv[] )
