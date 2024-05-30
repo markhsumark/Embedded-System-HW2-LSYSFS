@@ -46,7 +46,7 @@ struct dir{
 	struct inode* content_inode;
 	struct dir* next_dir;
 };
-// TODO :用link list紀錄filelist, dir list 
+// link list紀錄filelist, dir list 
 struct inode{
 	struct file* files_list; // file index to file
 	struct dir* dir_list;
@@ -119,16 +119,6 @@ struct inode* trace_inode(char** path_list, int count){
 			}	
 			dir_ptr = dir_ptr->next_dir;
 		}
-
-
-		// for(int d=0; d<=current_inode->dir_count; d++){
-		// 	printf("find %s\n", path_list[i]);
-		// 	if( strcmp( path_list[i], current_inode->dir_name_list[d] ) == 0 ){
-		// 		current_inode = current_inode->dir_list[d];
-		// 		printf("goto %s's inode\n", current_inode->dir_name_list[d]);
-		// 		break;
-		// 	}	
-		// }
 	}
 	return current_inode;
 }
@@ -208,13 +198,6 @@ int is_dir( const char *path )
 		return 0;
 	}
 	return 1;
-
-	// --------------------	
-	// for ( int curr_idx = 0; curr_idx <= curr_dir_idx; curr_idx++ )
-	// 	if ( strcmp( path, dir_list[ curr_idx ] ) == 0 )
-	// 		return 1;
-	
-	// return 0;
 }
 
 void add_file( const char *path )
@@ -229,12 +212,6 @@ void add_file( const char *path )
 	// 插入到file list中
 	new_file->next_file = current_inode->files_list;
 	current_inode->files_list = new_file;
-
-	// curr_file_idx++;
-	// strcpy( files_list[ curr_file_idx ], path );
-	
-	// curr_file_content_idx++;
-	// strcpy( files_content[ curr_file_content_idx ], "" );
 }
 
 int is_file( const char *path )
@@ -257,16 +234,6 @@ int is_file( const char *path )
 	if(check)
 		return 1;
 	return 0;
-
-
-	// -----------------------
-	// ---------------------
-	// path++; // Eliminating "/" in the path
-	// for ( int curr_idx = 0; curr_idx <= curr_file_idx; curr_idx++ )
-	// 	if ( strcmp( path, files_list[ curr_idx ] ) == 0 )
-	// 		return 1;
-	
-	// return 0;
 }
 
 int get_file_index( const char *path )
@@ -301,18 +268,11 @@ void write_to_file( const char *path, const char *new_content )
 	}
 	struct file* target_file = file_ptr;
 
-	//strcpy 內容
-	strcpy( target_file->content, new_content ); 
-
-	// -----------------
-	// int file_idx = get_file_index( path );
-	
-	// if ( file_idx == -1 ) // No such file
-	// 	return;
-	// // todo : 這裡要放入加密程式碼
-
+		
 	// unsigned char* encrypted_data = encrypt(new_content, file_idx);
-	// strcpy( files_content[ file_idx ], encrypted_data ); 
+	
+	//strcpy 內容
+	strcpy( target_file->content, new_content );  
 }
 
 // ... //
@@ -377,13 +337,6 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 		filler( buffer, filelistptr->name, NULL, 0 );
 		filelistptr = filelistptr->next_file;
 	}
-
-
-	// for ( int curr_idx = 0; curr_idx <= current_inode->dir_count; curr_idx++ )
-	// 	filler( buffer, current_inode->dir_name_list[ curr_idx ], NULL, 0 );
-
-	// for ( int curr_idx = 0; curr_idx <= current_inode->file_count; curr_idx++ )
-	// 	filler( buffer, current_inode->file_name_list[ curr_idx ], NULL, 0 );
 	
 	return 0;
 }
@@ -391,16 +344,35 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 static int do_read( const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi )
 {
 	// TODO: do read file
-	int file_idx = get_file_index( path );
+	int path_len;
+	char** path_list = split_path(path, '/', &path_len);
+	struct inode * current_inode = trace_inode(path_list, path_len);
+	// 找到file
+	int check = 0;
+	struct file* file_ptr = current_inode->files_list;
+	while(file_ptr && path_len){
+		if( strcmp( path_list[path_len-1], file_ptr->name ) == 0 )
+			break;
+		file_ptr = file_ptr->next_file;
+	}
+		
+
+	char *content = file_ptr->content;
+
+
+	// int file_idx = get_file_index( path );
 	
-	if ( file_idx == -1 )
-		return -1;
+	// if ( file_idx == -1 )
+	// 	return -1;
 	
-	char *content = files_content[ file_idx ];
+	// char *content = files_content[ file_idx ];
+
+	memcpy( buffer, content + offset, size );
+
 	// todo : 這裡要放入解密程式碼，考慮要不要用id去對應key
 
-	char * decrypted_data = decrypt(content, file_idx);
-	memcpy( buffer, decrypted_data + offset, size );
+	// char * decrypted_data = decrypt(content, file_idx);
+	// memcpy( buffer, decrypted_data + offset, size );
 	
 	return strlen( content ) - offset;
 }
@@ -430,7 +402,7 @@ static int do_write( const char *path, const char *buffer, size_t size, off_t of
 }
 
 static int do_rmdir(const char * ){
-	// TODO: 
+	// TODO: rmdir
 }
 
 static struct fuse_operations operations = {
