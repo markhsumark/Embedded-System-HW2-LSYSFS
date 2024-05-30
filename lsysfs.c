@@ -35,24 +35,28 @@ int curr_file_idx = -1;
 char files_content[ 256 ][ 256 ];
 int curr_file_content_idx = -1;
 
-// TODO: 模擬inode的結構
+// 模擬inode的結構
 struct file{
+	char name[ 256 ];
 	char content[ 256 ];// 檔案內容
+	struct file* next_file;
 };
+struct dir{
+	char name[ 256 ];
+	struct inode* content_inode;
+	struct dir* next_dir;
+};
+// TODO :用link list紀錄filelist, dir list 
 struct inode{
-	int file_count;
-	int dir_count;
-	char dir_name_list[ 256 ][ 256 ];
-	char file_name_list[ 256 ][ 256 ];
-	struct file* files_list[ 256 ]; // file index to file
-	struct inode* dir_list[ 256 ];
+	struct file* files_list; // file index to file
+	struct dir* dir_list;
 };
 
-// TODO: 初始化根目錄
-struct inode temp_node= {.file_count = -1, .dir_count = -1};
+// 初始化根目錄
+struct inode temp_node= {.files_list = NULL, .dir_list = NULL};
 struct inode * root_inode = &temp_node;
 
-/*TODO: 分析path
+/*分析path
 將一個char* 的path字串根據"/"拆成
 ex: "dir1/dir2" => ["dir1", "dir2"]
 */ 
@@ -106,19 +110,30 @@ struct inode* trace_inode(char** path_list, int count){
 	current_inode = root_inode;
 	for(int i=0; i<count-1; i++){ // 留下path中的最後一組
 		// 從當層的inode找dir
-		for(int d=0; d<=current_inode->dir_count; d++){
-			printf("find %s\n", path_list[i]);
-			if( strcmp( path_list[i], current_inode->dir_name_list[d] ) == 0 ){
-				current_inode = current_inode->dir_list[d];
-				printf("goto %s's inode\n", current_inode->dir_name_list[d]);
+		struct dir* dir_ptr = current_inode->dir_list;
+		while(dir_ptr!= NULL){
+			if( strcmp( path_list[i], dir_ptr->name ) == 0 ){
+				current_inode = dir_ptr->content_inode;
+				printf("goto %s's inode\n", dir_ptr->name);
 				break;
 			}	
+			dir_ptr = dir_ptr->next_dir;
 		}
+
+
+		// for(int d=0; d<=current_inode->dir_count; d++){
+		// 	printf("find %s\n", path_list[i]);
+		// 	if( strcmp( path_list[i], current_inode->dir_name_list[d] ) == 0 ){
+		// 		current_inode = current_inode->dir_list[d];
+		// 		printf("goto %s's inode\n", current_inode->dir_name_list[d]);
+		// 		break;
+		// 	}	
+		// }
 	}
 	return current_inode;
 }
 
-// TODO
+// 
 // 初始化函數
 struct inode* create_inode() {
     struct inode* new_inode = (struct inode*)malloc(sizeof(struct inode));
@@ -126,20 +141,20 @@ struct inode* create_inode() {
         perror("Failed to allocate memory");
         exit(EXIT_FAILURE);
     }
-    new_inode->file_count = -1;
-    new_inode->dir_count = -1;
     // 清空其他成員（初始化為零）
-    memset(new_inode->dir_name_list, 0, sizeof(sizeof(char*)*256*256));
-    memset(new_inode->file_name_list, 0, sizeof(sizeof(char*)*256*256));
-    memset(new_inode->files_list, 0, sizeof(new_inode->files_list));
-    memset(new_inode->dir_list, 0, sizeof(new_inode->dir_list));
     return new_inode;
 }
-// TODO: create_file funciton
+// create_file funciton
 struct file* create_file(){
-	struct file* new_file = (struct inode*)malloc(sizeof(struct file));
+	struct file* new_file = (struct file*)malloc(sizeof(struct file));
 	memset(new_file->content, 0, sizeof(sizeof(char*)*256));
+	memset(new_file->name, 0, sizeof(sizeof(char*)*256));
 	return new_file;
+}
+struct dir* create_dir(){
+	struct dir* new_dir = (struct dir*)malloc(sizeof(struct dir));
+	memset(new_dir->name, 0, sizeof(sizeof(char*)*256));
+	return new_dir;
 }
 
 void add_dir( const char *dir_name )
@@ -154,15 +169,18 @@ void add_dir( const char *dir_name )
 	if(current_inode == NULL)
 		printf("error in add_dir when trace inode!\n");
 
-
-
-	int n = ++(current_inode->dir_count);	
-	strcpy(current_inode->dir_name_list[n], path_list[path_len-1]);
+	printf("create a dir %s\n", path_list[path_len-1]);
 	struct inode * new_inode = create_inode();
-	printf("create a inode %s\n", path_list[path_len-1]);
-	current_inode->dir_list[n] = new_inode;
+	struct dir * new_dir = create_dir();
+	
+	strcpy(new_dir->name, path_list[path_len-1]);
+	new_dir->content_inode = new_inode;
 
-	// strcpy( dir_list[ curr_dir_idx ], dir_name );
+	// 插入到dir list中
+	new_dir->next_dir = current_inode->dir_list;
+	current_inode->dir_list = new_dir;
+
+
 }
 
 int is_dir( const char *path )
@@ -177,14 +195,13 @@ int is_dir( const char *path )
 	
 	struct inode* current_inode = trace_inode(path_list, path_len);
 	int check = 0;
-	for(int d=0; d<=current_inode->dir_count; d++){
-		printf("find %s\n", path_list[path_len-1]);
-		if( strcmp( path_list[path_len-1], current_inode->dir_name_list[ d ] ) == 0 ){
-			printf("goto %s's inode\n", path_list[path_len-1]);
+	struct dir* dir_ptr = current_inode->dir_list;
+	while(dir_ptr && path_len){
+		if( strcmp( path_list[path_len-1], dir_ptr->name ) == 0 ){
 			check = 1;
 			break;
-		}
-		
+		}	
+		dir_ptr = dir_ptr->next_dir;
 	}
 	if(!check){
 		printf("not found the directory in is_dir\n");
@@ -202,31 +219,16 @@ int is_dir( const char *path )
 
 void add_file( const char *path )
 {
+	printf("add_file)\n");
 	int count;
 	char** path_list = split_path(path, '/', &count);
-
-	// struct inode* current_inode = trace_inode(path_list, count);
-
-	struct inode * current_inode = root_inode;
-	for(int i=0; i<count-1; i++){ // 留下path中的最後一組(因為是filename)
-		// 從當層的inode找dir
-		for(int d=0; d<=current_inode->dir_count; d++){
-			printf("find %s\n", path_list[i]);
-			if( strcmp( path_list[i], current_inode->dir_name_list[d] ) == 0 ){
-				current_inode = current_inode->dir_list[d];
-				printf("goto %s's inode\n", current_inode->dir_name_list[d]);
-				break;
-			}	
-		}
-	}
+	struct inode * current_inode = trace_inode(path_list, count);
 
 	struct file* new_file = create_file();
-	int n = ++current_inode->file_count;
-	strcpy( current_inode->file_name_list[ n ], path_list[count-1] );
-	strcpy(new_file->content, "");
-	current_inode->files_list[ n ] = new_file;
-
-
+	strcpy( new_file->name, path_list[count-1] );
+	// 插入到file list中
+	new_file->next_file = current_inode->files_list;
+	current_inode->files_list = new_file;
 
 	// curr_file_idx++;
 	// strcpy( files_list[ curr_file_idx ], path );
@@ -237,24 +239,23 @@ void add_file( const char *path )
 
 int is_file( const char *path )
 {
+	printf("is_file)\n");
 	//先找出inode
 	int count;
 	char** path_list = split_path(path, '/', &count);
 	struct inode * current_inode = trace_inode(path_list, count);
-
 	// 找到file
-	int id = -1;
 	int check = 0;
-	for(int i = 0; i<= current_inode->file_count; i++){
-		if( strcmp(current_inode->file_name_list[i], path_list[count-1] ) == 0 ){
-			id = i;
+	struct file* file_ptr = current_inode->files_list;
+	while(file_ptr && count){
+		if( strcmp( path_list[count-1], file_ptr->name ) == 0 ){
 			check = 1;
 			break;
-		}
+		}	
+		file_ptr = file_ptr->next_file;
 	}
 	if(check)
 		return 1;
-
 	return 0;
 
 
@@ -283,20 +284,22 @@ int get_file_index( const char *path )
 void write_to_file( const char *path, const char *new_content )
 {
 
-	// TODO: write file
+	// write file
 	//先找出inode
 	int count;
 	char** path_list = split_path(path, '/', &count);
 	struct inode * current_inode = trace_inode(path_list, count);
 	// 找到file
-	int id = -1;
-	for(int i = 0; i<= current_inode->file_count; i++){
-		if( strcmp(current_inode->file_name_list[i], path_list[count-1] ) == 0 ){
-			id = i;
+	int check = 0;
+	struct file* file_ptr = current_inode->files_list;
+	while(file_ptr && count){
+		if( strcmp( path_list[count-1], file_ptr->name ) == 0 ){
+			check = 1;
 			break;
-		}
+		}	
+		file_ptr = file_ptr->next_file;
 	}
-	struct file* target_file = current_inode->files_list[id];
+	struct file* target_file = file_ptr;
 
 	//strcpy 內容
 	strcpy( target_file->content, new_content ); 
@@ -343,7 +346,7 @@ static int do_getattr( const char *path, struct stat *st )
 static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi )
 {
 	printf("\ndo_readdir)%s\n", path);
-	// TODO: 用inode tree找到當下路徑的inode並用該inode列出所有file和dir
+	// 用inode tree找到當下路徑的inode並用該inode列出所有file和dir
 	
 	//這兩行不知道是什麼
 	filler( buffer, ".", NULL, 0 ); // Current Directory
@@ -352,23 +355,35 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 	// 跳到指定的路徑
 	int count;
 	char** path_list = split_path(path, '/', &count);
-	struct inode * current_inode = root_inode;
-	for(int i=0; i<count; i++){
-		// 從當層的inode找dir
-		for(int d=0; d<=current_inode->dir_count; d++){
-			printf("find %s\n", path_list[i]);
-			if( strcmp( path_list[i], current_inode->dir_name_list[d] ) == 0 ){
-				current_inode = current_inode->dir_list[d];
-				printf("goto %s's inode\n", current_inode->dir_name_list[d]);
-				break;
-			}	
-		}
+	struct inode * current_inode = trace_inode(path_list, count);
+	struct dir* dir_ptr = current_inode->dir_list;
+	while(dir_ptr && count){
+		printf("name :%s, %d\n", dir_ptr->name, count);
+		if( strcmp( path_list[count-1], dir_ptr->name ) == 0 ){
+			printf("goto %s's inode\n", dir_ptr->name);
+			current_inode = dir_ptr->content_inode;
+			break;
+		}	
+		dir_ptr = dir_ptr->next_dir;
 	}
-	for ( int curr_idx = 0; curr_idx <= current_inode->dir_count; curr_idx++ )
-		filler( buffer, current_inode->dir_name_list[ curr_idx ], NULL, 0 );
+	struct dir* dirlistptr = current_inode->dir_list;
+	while(dirlistptr){
+		filler( buffer, dirlistptr->name, NULL, 0 );
+		dirlistptr = dirlistptr->next_dir;
+	}
+		
+	struct file* filelistptr = current_inode->files_list;
+	while(filelistptr){
+		filler( buffer, filelistptr->name, NULL, 0 );
+		filelistptr = filelistptr->next_file;
+	}
 
-	for ( int curr_idx = 0; curr_idx <= current_inode->file_count; curr_idx++ )
-		filler( buffer, current_inode->file_name_list[ curr_idx ], NULL, 0 );
+
+	// for ( int curr_idx = 0; curr_idx <= current_inode->dir_count; curr_idx++ )
+	// 	filler( buffer, current_inode->dir_name_list[ curr_idx ], NULL, 0 );
+
+	// for ( int curr_idx = 0; curr_idx <= current_inode->file_count; curr_idx++ )
+	// 	filler( buffer, current_inode->file_name_list[ curr_idx ], NULL, 0 );
 	
 	return 0;
 }
@@ -415,7 +430,7 @@ static int do_write( const char *path, const char *buffer, size_t size, off_t of
 }
 
 static int do_rmdir(const char * ){
-	
+	// TODO: 
 }
 
 static struct fuse_operations operations = {
