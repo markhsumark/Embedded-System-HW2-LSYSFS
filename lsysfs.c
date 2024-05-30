@@ -131,7 +131,8 @@ struct inode* create_inode() {
         perror("Failed to allocate memory");
         exit(EXIT_FAILURE);
     }
-    // 清空其他成員（初始化為零）
+    new_inode->files_list = NULL;
+	new_inode->dir_list = NULL;
     return new_inode;
 }
 // create_file funciton
@@ -141,9 +142,16 @@ struct file* create_file(){
 	memset(new_file->name, 0, sizeof(sizeof(char*)*256));
 	return new_file;
 }
+// TODO: remove file
+void removeFile(struct file * prev_ptr, struct file * target_ptr){
+	prev_ptr->next_file = target_ptr->next_file;
+	free(target_ptr);
+}
+
 struct dir* create_dir(){
 	struct dir* new_dir = (struct dir*)malloc(sizeof(struct dir));
 	memset(new_dir->name, 0, sizeof(sizeof(char*)*256));
+	new_dir->next_dir = NULL;
 	return new_dir;
 }
 
@@ -327,7 +335,7 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 		dir_ptr = dir_ptr->next_dir;
 	}
 	struct dir* dirlistptr = current_inode->dir_list;
-	while(dirlistptr){
+	while(dirlistptr != NULL){
 		filler( buffer, dirlistptr->name, NULL, 0 );
 		dirlistptr = dirlistptr->next_dir;
 	}
@@ -343,7 +351,6 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 
 static int do_read( const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi )
 {
-	// TODO: do read file
 	int path_len;
 	char** path_list = split_path(path, '/', &path_len);
 	struct inode * current_inode = trace_inode(path_list, path_len);
@@ -358,14 +365,6 @@ static int do_read( const char *path, char *buffer, size_t size, off_t offset, s
 		
 
 	char *content = file_ptr->content;
-
-
-	// int file_idx = get_file_index( path );
-	
-	// if ( file_idx == -1 )
-	// 	return -1;
-	
-	// char *content = files_content[ file_idx ];
 
 	memcpy( buffer, content + offset, size );
 
@@ -400,9 +399,34 @@ static int do_write( const char *path, const char *buffer, size_t size, off_t of
 	
 	return size;
 }
-
-static int do_rmdir(const char * ){
-	// TODO: rmdir
+// TODO: rmdir
+static int do_rmdir(const char * path){
+	printf("in do_rmdir)\n");
+	int path_len;
+	char** path_list = split_path(path, '/', &path_len);
+	struct inode* current_inode = trace_inode(path_list, path_len);
+	struct dir* prev_dir = current_inode->dir_list;
+	struct dir* dir_ptr = current_inode->dir_list;
+	while(dir_ptr && path_len){
+		if( strcmp( path_list[path_len-1], dir_ptr->name ) == 0 ){
+			break;
+		}	
+		prev_dir = dir_ptr;
+		dir_ptr = dir_ptr->next_dir;
+	}
+	printf("remove %s\n", dir_ptr->name );
+	if(dir_ptr == current_inode->dir_list){
+		current_inode->dir_list = dir_ptr->next_dir;
+		free(dir_ptr);
+	}
+	else{
+		prev_dir->next_dir = dir_ptr->next_dir;
+		free(dir_ptr);
+	}
+		
+}
+static int do_remove(const char * ){
+	// TODO: rm file
 }
 
 static struct fuse_operations operations = {
@@ -412,6 +436,7 @@ static struct fuse_operations operations = {
     .mkdir		= do_mkdir,
     .mknod		= do_mknod,
     .write		= do_write,
+	.rmdir		= do_rmdir,
 };
 
 int main( int argc, char *argv[] )
