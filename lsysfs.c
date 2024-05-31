@@ -194,6 +194,7 @@ int is_dir( const char *path )
 
 void add_file( const char *path )
 {
+
 	int count;
 	char** path_list = split_path(path, '/', &count);
 	struct inode * current_inode = trace_inode(path_list, count);
@@ -283,6 +284,8 @@ static int do_getattr( const char *path, struct stat *st )
 
 static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi )
 {
+	printf("Read dir: %s\n", path);
+
 	// 用inode tree找到當下路徑的inode並用該inode列出所有file和dir
 	
 	//這兩行不知道是什麼
@@ -318,6 +321,8 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 
 static int do_read( const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi )
 {
+	printf("Read file: %s\n", path);
+
 	int path_len;
 	char** path_list = split_path(path, '/', &path_len);
 	struct inode * current_inode = trace_inode(path_list, path_len);
@@ -334,12 +339,14 @@ static int do_read( const char *path, char *buffer, size_t size, off_t offset, s
 	char *content = file_ptr->content;
 	content = decrypt(content, file_ptr->idx);
 	memcpy( buffer, content + offset, sizeof(char*)*strlen(content) );
-	
+
 	return strlen( content ) - offset;
 }
 
 static int do_mkdir( const char *path, mode_t mode )
 {
+	printf("Remove file: %s\n", path);
+
 	path++;
 	add_dir( path );
 	
@@ -348,6 +355,7 @@ static int do_mkdir( const char *path, mode_t mode )
 
 static int do_mknod( const char *path, mode_t mode, dev_t rdev )
 {
+	printf("Make Node : %s\n", path);
 	path++;
 	add_file( path );
 	
@@ -356,12 +364,15 @@ static int do_mknod( const char *path, mode_t mode, dev_t rdev )
 
 static int do_write( const char *path, const char *buffer, size_t size, off_t offset, struct fuse_file_info *info )
 {
+	printf("Write file: %s\n", path);
+
 	write_to_file( path, buffer );
-	
 	return size;
 }
 // TODO: rmdir
 static int do_rmdir(const char * path){
+	printf("Remove dir: %s\n", path);
+
 	int path_len;
 	char** path_list = split_path(path, '/', &path_len);
 	struct inode* current_inode = trace_inode(path_list, path_len);
@@ -385,6 +396,7 @@ static int do_rmdir(const char * path){
 		
 }
 static int do_rm(const char * path){
+	printf("Remove file(unlink): %s\n", path);
 	// rm file
 	int path_len;
 	char** path_list = split_path(path, '/', &path_len);
@@ -412,8 +424,44 @@ struct my_file_info {
     int fd; // 文件描述符
 };
 // TODO: open file
+static int do_open(const char *path, struct fuse_file_info *fi) {
+    printf("Opening file: %s\n", path);
+
+    return 0;
+}
+
+// TODO: create file
+static int do_create(const char *path, const struct timespec tv[2], struct fuse_file_info *fi) {
+	path++;
+	printf("Create file : %s\n", path);
+	int count;
+	char** path_list = split_path(path, '/', &count);
+	struct inode * current_inode = trace_inode(path_list, count);
+
+	struct file* new_file = create_file();
+	strcpy( new_file->name, path_list[count-1] );
+	// 插入到file list中
+	new_file->next_file = current_inode->files_list;
+	current_inode->files_list = new_file;
+
+    unsigned char* aes_key = malloc(sizeof(unsigned char)*AES_KEY_SIZE);
+	unsigned char* aes_iv = malloc(sizeof(unsigned char)*AES_KEY_SIZE);
+	genKey(&aes_key);
+	genKey(&aes_iv);
+	memcpy(map_key[new_file->idx], aes_key, AES_KEY_SIZE);
+	memcpy(map_iv[new_file->idx], aes_iv, AES_KEY_SIZE);
+
+	return 0;
+}
+
 
 // TODO: close file
+static int do_close(const char * path, struct fuse_file_info * fi){
+	printf("Close file: %s\n", path);
+	return 0;
+
+}
+
 
 
 static struct fuse_operations operations = {
@@ -421,10 +469,13 @@ static struct fuse_operations operations = {
     .readdir	= do_readdir,
     .read		= do_read,
     .mkdir		= do_mkdir,
-    .mknod		= do_mknod,
+    .mknod		= do_create,
     .write		= do_write,
 	.rmdir		= do_rmdir,
-	.unlink		= do_rm,
+	.unlink		= do_rm, // 接收rm指令fuse_operations
+	.create		= do_create,	// 接收touch指令的fuse_operations
+	.release	= do_close,
+	.open		= do_open
 };
 
 

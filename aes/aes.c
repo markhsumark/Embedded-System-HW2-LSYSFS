@@ -25,12 +25,10 @@ void genKey(unsigned char** key){
 unsigned char * encrypt(unsigned char* plaintext, int file_idx){
     printf("encrypt file id is :%d\n", file_idx);    
 
-    unsigned char* aes_key = malloc(sizeof(unsigned char)*AES_KEY_SIZE);
-	unsigned char* aes_iv = malloc(sizeof(unsigned char)*AES_KEY_SIZE);
-	genKey(&aes_key);
-	genKey(&aes_iv);
-	memcpy(map_key[file_idx], aes_key, AES_KEY_SIZE);
-	memcpy(map_iv[file_idx], aes_iv, AES_KEY_SIZE);
+    unsigned char* aes_key = map_key[file_idx];
+	unsigned char* aes_iv = map_iv[file_idx];
+
+
     if(strlen(plaintext) == 0)
         return plaintext;
     int plaintext_len = strlen(plaintext);
@@ -78,8 +76,8 @@ unsigned char * encrypt(unsigned char* plaintext, int file_idx){
     }
     printf("\n");
     encrypted_data[encrypted_len] = '\0';
-    free(aes_key);
-	free(aes_iv);
+    // free(aes_key);
+	// free(aes_iv);
     return encrypted_data;
 }
 char * decrypt(unsigned char* encrypted_data,int file_idx){
@@ -88,6 +86,7 @@ char * decrypt(unsigned char* encrypted_data,int file_idx){
 	unsigned char* aes_iv = map_iv[file_idx];
     if(strlen(encrypted_data) == 0)
         return encrypted_data;
+
      // 創建 EVP 加密上下文
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     // 初始化 AES 解密
