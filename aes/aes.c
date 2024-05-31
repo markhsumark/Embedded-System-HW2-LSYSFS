@@ -23,6 +23,7 @@ void genKey(unsigned char** key){
 }
 
 unsigned char * encrypt(unsigned char* plaintext, int file_idx){
+    printf("encrypt file id is :%d\n", file_idx);    
 
     unsigned char* aes_key = malloc(sizeof(unsigned char)*AES_KEY_SIZE);
 	unsigned char* aes_iv = malloc(sizeof(unsigned char)*AES_KEY_SIZE);
@@ -81,7 +82,8 @@ unsigned char * encrypt(unsigned char* plaintext, int file_idx){
 	free(aes_iv);
     return encrypted_data;
 }
-char * decrypt(unsigned char* encrypted_data,int file_idx){    
+char * decrypt(unsigned char* encrypted_data,int file_idx){
+    printf("decrypt file id is :%d\n", file_idx);    
     unsigned char* aes_key = map_key[file_idx];
 	unsigned char* aes_iv = map_iv[file_idx];
     if(strlen(encrypted_data) == 0)

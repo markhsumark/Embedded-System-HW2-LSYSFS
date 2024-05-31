@@ -24,17 +24,6 @@
 // 加入aes演算法
 #include "aes/aes.h"
 
-// ... //
-
-char dir_list[ 256 ][ 256 ];
-int curr_dir_idx = -1;
-
-char files_list[ 256 ][ 256 ];
-int curr_file_idx = -1;
-
-char files_content[ 256 ][ 256 ];
-int curr_file_content_idx = -1;
-int id_count = 0;
 
 // 模擬inode的結構
 struct file{
@@ -50,8 +39,8 @@ struct dir{
 };
 // link list紀錄filelist, dir list 
 struct inode{
-	struct file* files_list; // file index to file
-	struct dir* dir_list;
+	struct file* files_list; 	// files link list for this layer
+	struct dir* dir_list;		// directory link list for this layer
 };
 
 // 初始化根目錄
@@ -116,7 +105,6 @@ struct inode* trace_inode(char** path_list, int count){
 		while(dir_ptr!= NULL){
 			if( strcmp( path_list[i], dir_ptr->name ) == 0 ){
 				current_inode = dir_ptr->content_inode;
-				printf("goto %s's inode\n", dir_ptr->name);
 				break;
 			}	
 			dir_ptr = dir_ptr->next_dir;
@@ -145,7 +133,6 @@ struct file* create_file(){
 	new_file->idx = id_count++;
 	return new_file;
 }
-// TODO: remove file
 void removeFile(struct file * prev_ptr, struct file * target_ptr){
 	prev_ptr->next_file = target_ptr->next_file;
 	free(target_ptr);
@@ -160,7 +147,6 @@ struct dir* create_dir(){
 
 void add_dir( const char *dir_name )
 {
-	printf("\nin add_dir)\n");
 	curr_dir_idx++;
 	// 實體劃一個inode structure(必須分配記憶體空間)，要連在正確的inode下
 	int path_len;
@@ -170,7 +156,6 @@ void add_dir( const char *dir_name )
 	if(current_inode == NULL)
 		printf("error in add_dir when trace inode!\n");
 
-	printf("create a dir %s\n", path_list[path_len-1]);
 	struct inode * new_inode = create_inode();
 	struct dir * new_dir = create_dir();
 	
@@ -189,8 +174,6 @@ int is_dir( const char *path )
 	path++; // Eliminating "/" in the path
 
     // 這邊要分析path，追著inode去判斷最後是不是對應到dir
-	printf("\nin is_dir): %s\n", path);
-
 	int path_len;
 	char** path_list = split_path(path, '/', &path_len);
 	
@@ -205,7 +188,6 @@ int is_dir( const char *path )
 		dir_ptr = dir_ptr->next_dir;
 	}
 	if(!check){
-		printf("not found the directory in is_dir\n");
 		return 0;
 	}
 	return 1;
@@ -213,7 +195,6 @@ int is_dir( const char *path )
 
 void add_file( const char *path )
 {
-	printf("add_file)\n");
 	int count;
 	char** path_list = split_path(path, '/', &count);
 	struct inode * current_inode = trace_inode(path_list, count);
@@ -227,7 +208,6 @@ void add_file( const char *path )
 
 int is_file( const char *path )
 {
-	printf("is_file)\n");
 	//先找出inode
 	int count;
 	char** path_list = split_path(path, '/', &count);
@@ -316,7 +296,6 @@ static int do_getattr( const char *path, struct stat *st )
 
 static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi )
 {
-	printf("\ndo_readdir)%s\n", path);
 	// 用inode tree找到當下路徑的inode並用該inode列出所有file和dir
 	
 	//這兩行不知道是什麼
@@ -329,9 +308,7 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 	struct inode * current_inode = trace_inode(path_list, count);
 	struct dir* dir_ptr = current_inode->dir_list;
 	while(dir_ptr && count){
-		printf("name :%s, %d\n", dir_ptr->name, count);
 		if( strcmp( path_list[count-1], dir_ptr->name ) == 0 ){
-			printf("goto %s's inode\n", dir_ptr->name);
 			current_inode = dir_ptr->content_inode;
 			break;
 		}	
@@ -392,14 +369,12 @@ static int do_mknod( const char *path, mode_t mode, dev_t rdev )
 
 static int do_write( const char *path, const char *buffer, size_t size, off_t offset, struct fuse_file_info *info )
 {
-	printf("do write!!\n");
 	write_to_file( path, buffer );
 	
 	return size;
 }
 // TODO: rmdir
 static int do_rmdir(const char * path){
-	printf("in do_rmdir)\n");
 	int path_len;
 	char** path_list = split_path(path, '/', &path_len);
 	struct inode* current_inode = trace_inode(path_list, path_len);
@@ -412,7 +387,6 @@ static int do_rmdir(const char * path){
 		prev_dir = dir_ptr;
 		dir_ptr = dir_ptr->next_dir;
 	}
-	printf("remove %s\n", dir_ptr->name );
 	if(dir_ptr == current_inode->dir_list){
 		current_inode->dir_list = dir_ptr->next_dir;
 		free(dir_ptr);
@@ -425,7 +399,6 @@ static int do_rmdir(const char * path){
 }
 static int do_rm(const char * path){
 	// rm file
-	printf("in do_rm)\n");
 	int path_len;
 	char** path_list = split_path(path, '/', &path_len);
 	struct inode* current_inode = trace_inode(path_list, path_len);
@@ -438,7 +411,6 @@ static int do_rm(const char * path){
 		prev_file = file_ptr;
 		file_ptr = file_ptr->next_file;
 	}
-	printf("remove %s\n", file_ptr->name );
 	if(file_ptr == current_inode->files_list){
 		current_inode->files_list = file_ptr->next_file;
 		free(file_ptr);
