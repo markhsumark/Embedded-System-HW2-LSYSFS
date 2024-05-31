@@ -34,9 +34,11 @@ int curr_file_idx = -1;
 
 char files_content[ 256 ][ 256 ];
 int curr_file_content_idx = -1;
+int id_count = 0;
 
 // 模擬inode的結構
 struct file{
+	int idx;
 	char name[ 256 ];
 	char content[ 256 ];// 檔案內容
 	struct file* next_file;
@@ -140,6 +142,7 @@ struct file* create_file(){
 	struct file* new_file = (struct file*)malloc(sizeof(struct file));
 	memset(new_file->content, 0, sizeof(sizeof(char*)*256));
 	memset(new_file->name, 0, sizeof(sizeof(char*)*256));
+	new_file->idx = id_count++;
 	return new_file;
 }
 // TODO: remove file
@@ -277,10 +280,10 @@ void write_to_file( const char *path, const char *new_content )
 	struct file* target_file = file_ptr;
 
 		
-	// unsigned char* encrypted_data = encrypt(new_content, file_idx);
+	unsigned char* encrypted_data = encrypt(new_content, target_file->idx);
 	
 	//strcpy 內容
-	strcpy( target_file->content, new_content );  
+	strcpy( target_file->content, encrypted_data );  
 }
 
 // ... //
@@ -365,13 +368,8 @@ static int do_read( const char *path, char *buffer, size_t size, off_t offset, s
 		
 
 	char *content = file_ptr->content;
-
-	memcpy( buffer, content + offset, size );
-
-	// todo : 這裡要放入解密程式碼，考慮要不要用id去對應key
-
-	// char * decrypted_data = decrypt(content, file_idx);
-	// memcpy( buffer, decrypted_data + offset, size );
+	content = decrypt(content, file_ptr->idx);
+	memcpy( buffer, content + offset, sizeof(char*)*strlen(content) );
 	
 	return strlen( content ) - offset;
 }
@@ -426,7 +424,7 @@ static int do_rmdir(const char * path){
 		
 }
 static int do_rm(const char * path){
-	// TODO: rm file
+	// rm file
 	printf("in do_rm)\n");
 	int path_len;
 	char** path_list = split_path(path, '/', &path_len);
@@ -451,6 +449,14 @@ static int do_rm(const char * path){
 	}
 }
 
+struct my_file_info {
+    int fd; // 文件描述符
+};
+// TODO: open file
+
+// TODO: close file
+
+
 static struct fuse_operations operations = {
     .getattr	= do_getattr,
     .readdir	= do_readdir,
@@ -461,6 +467,7 @@ static struct fuse_operations operations = {
 	.rmdir		= do_rmdir,
 	.unlink		= do_rm,
 };
+
 
 int main( int argc, char *argv[] )
 {

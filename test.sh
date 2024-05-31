@@ -19,27 +19,27 @@ echo "hello12" >> dir1/file12.txt
 echo "files and directorys in path mountpoint/dir1" 
 ls dir1
 
-echo ""
-echo "test rmdir and rm"
-echo ""
-echo "---remove dir2 and dir1/dir11---"
-rmdir dir2
-rmdir dir1/dir11
+# echo ""
+# echo "test rmdir and rm"
+# echo ""
+# echo "---remove dir2 and dir1/dir11---"
+# rmdir dir2
+# rmdir dir1/dir11
 
-echo "files and directorys in path mountpoint/" 
-ls
-echo "files and directorys in path mountpoint/dir1" 
-ls dir1
+# echo "files and directorys in path mountpoint/" 
+# ls
+# echo "files and directorys in path mountpoint/dir1" 
+# ls dir1
 
-echo ""
-echo "---remove dir1/file11.txt and file1.txt---"
-rm dir1/file11.txt
-rm file1.txt
+# echo ""
+# echo "---remove dir1/file11.txt and file1.txt---"
+# rm dir1/file11.txt
+# rm file1.txt
 
-echo "files and directorys in path mountpoint/" 
-ls
-echo "files and directorys in path mountpoint/dir1" 
-ls dir1
+# echo "files and directorys in path mountpoint/" 
+# ls
+# echo "files and directorys in path mountpoint/dir1" 
+# ls dir1
 
 
 echo "--------done--------"
