@@ -24,7 +24,7 @@
 // 加入aes演算法
 #include "aes/aes.h"
 
-
+int id_count = 0;
 // 模擬inode的結構
 struct file{
 	int idx;
@@ -147,7 +147,6 @@ struct dir* create_dir(){
 
 void add_dir( const char *dir_name )
 {
-	curr_dir_idx++;
 	// 實體劃一個inode structure(必須分配記憶體空間)，要連在正確的inode下
 	int path_len;
 	char** path_list = split_path(dir_name, '/', &path_len);
@@ -225,18 +224,6 @@ int is_file( const char *path )
 	if(check)
 		return 1;
 	return 0;
-}
-
-int get_file_index( const char *path )
-{
-
-	path++; // Eliminating "/" in the path
-	
-	for ( int curr_idx = 0; curr_idx <= curr_file_idx; curr_idx++ )
-		if ( strcmp( path, files_list[ curr_idx ] ) == 0 )
-			return curr_idx;
-	
-	return -1;
 }
 
 void write_to_file( const char *path, const char *new_content )
